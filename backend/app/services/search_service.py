@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from sqlalchemy import func, or_, and_, desc, asc
+from sqlalchemy import func, desc, asc
 from typing import List, Dict, Optional
 from uuid import UUID
 from datetime import datetime
