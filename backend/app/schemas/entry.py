@@ -90,4 +90,3 @@ class SummaryResponse(BaseModel):
     summary: Optional[str] = None
     status: SummaryStatus
     error: Optional[str] = None
-

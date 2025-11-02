@@ -12,13 +12,12 @@ router = APIRouter()
 
 @router.get("/analytics/overview")
 async def get_analytics_overview(
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_user), db: Session = Depends(get_db)
 ):
     """Get user analytics overview"""
     # Total entries
     total_entries = db.query(Entry).filter(Entry.user_id == current_user.id).count()
-    
+
     # Entries by type
     entries_by_type = (
         db.query(Entry.content_type, func.count(Entry.id))
@@ -27,7 +26,7 @@ async def get_analytics_overview(
         .all()
     )
     entries_by_type_dict = {entry_type: count for entry_type, count in entries_by_type}
-    
+
     # Top tags
     top_tags = (
         db.query(Tag.name, func.count(EntryTag.entry_id).label("count"))
@@ -40,7 +39,7 @@ async def get_analytics_overview(
         .all()
     )
     top_tags_list = [{"name": name, "count": count} for name, count in top_tags]
-    
+
     # Recent entries
     recent_entries = (
         db.query(Entry)
@@ -58,11 +57,10 @@ async def get_analytics_overview(
         }
         for entry in recent_entries
     ]
-    
+
     return {
         "total_entries": total_entries,
         "entries_by_type": entries_by_type_dict,
         "top_tags": top_tags_list,
         "recent_entries": recent_entries_list,
     }
-

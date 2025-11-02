@@ -1,2 +1,1 @@
 # InsightVault Backend Application
-

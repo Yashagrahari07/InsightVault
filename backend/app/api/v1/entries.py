@@ -9,8 +9,13 @@ from app.core.security import get_current_user
 from app.models.user import User
 from app.models.entry import Entry, Tag, EntryTag
 from app.schemas.entry import (
-    EntryCreate, EntryUpdate, EntryResponse, EntryListResponse,
-    EntrySearchRequest, ContentType, SummaryStatus
+    EntryCreate,
+    EntryUpdate,
+    EntryResponse,
+    EntryListResponse,
+    EntrySearchRequest,
+    ContentType,
+    SummaryStatus,
 )
 import json
 import httpx
@@ -25,18 +30,18 @@ def fetch_url_metadata(url: str) -> dict:
     try:
         response = httpx.get(url, timeout=10, follow_redirects=True)
         response.raise_for_status()
-        
+
         soup = BeautifulSoup(response.text, "html.parser")
-        
+
         title = soup.find("title")
         title_text = title.get_text(strip=True) if title else ""
-        
+
         meta_description = soup.find("meta", attrs={"name": "description"})
         description = meta_description.get("content", "") if meta_description else ""
-        
+
         og_image = soup.find("meta", attrs={"property": "og:image"})
         image_url = og_image.get("content", "") if og_image else ""
-        
+
         return {
             "title": title_text[:500],
             "description": description[:1000],
@@ -54,16 +59,16 @@ def fetch_github_repo_metadata(repo_url: str) -> dict:
         parts = repo_url.replace("https://github.com/", "").strip("/").split("/")
         if len(parts) < 2:
             raise ValueError("Invalid GitHub URL")
-        
+
         owner, repo = parts[0], parts[1]
-        
+
         # Fetch from GitHub API
         api_url = f"https://api.github.com/repos/{owner}/{repo}"
         response = httpx.get(api_url, timeout=10)
         response.raise_for_status()
-        
+
         data = response.json()
-        
+
         return {
             "name": data.get("name", ""),
             "full_name": data.get("full_name", ""),
@@ -78,28 +83,30 @@ def fetch_github_repo_metadata(repo_url: str) -> dict:
         return {}
 
 
-@router.post("/entries", response_model=EntryResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/entries", response_model=EntryResponse, status_code=status.HTTP_201_CREATED
+)
 async def create_entry(
     entry_data: EntryCreate,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """Create a new entry"""
     entry_metadata = entry_data.metadata or {}
-    
+
     # Fetch metadata based on content type
     if entry_data.content_type == ContentType.LINK and entry_data.url:
         fetched_metadata = fetch_url_metadata(str(entry_data.url))
         entry_metadata.update(fetched_metadata)
         if not entry_data.title and fetched_metadata.get("title"):
             entry_data.title = fetched_metadata["title"]
-    
+
     elif entry_data.content_type == ContentType.REPO and entry_data.url:
         fetched_metadata = fetch_github_repo_metadata(str(entry_data.url))
         entry_metadata.update(fetched_metadata)
         if not entry_data.title and fetched_metadata.get("full_name"):
             entry_data.title = fetched_metadata["full_name"]
-    
+
     entry = Entry(
         user_id=current_user.id,
         title=entry_data.title,
@@ -108,11 +115,11 @@ async def create_entry(
         content=entry_data.content,
         entry_metadata=entry_metadata,
     )
-    
+
     db.add(entry)
     db.commit()
     db.refresh(entry)
-    
+
     return entry
 
 
@@ -123,36 +130,36 @@ async def list_entries(
     content_type: Optional[ContentType] = None,
     sort: str = Query("newest", regex="^(newest|oldest)$"),
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """List user's entries with pagination"""
     # Cache key
     cache_key = f"entries:{current_user.id}:{page}:{limit}:{content_type}:{sort}"
-    
+
     # Try to get from cache
     cached = redis_client.get(cache_key)
     if cached:
         return json.loads(cached)
-    
+
     # Build query
     query = db.query(Entry).filter(Entry.user_id == current_user.id)
-    
+
     if content_type:
         query = query.filter(Entry.content_type == content_type.value)
-    
+
     # Sort
     if sort == "newest":
         query = query.order_by(desc(Entry.created_at))
     else:
         query = query.order_by(Entry.created_at)
-    
+
     # Count total
     total = query.count()
-    
+
     # Paginate
     offset = (page - 1) * limit
     entries = query.offset(offset).limit(limit).all()
-    
+
     result = EntryListResponse(
         data=entries,
         pagination={
@@ -160,12 +167,12 @@ async def list_entries(
             "limit": limit,
             "total": total,
             "pages": (total + limit - 1) // limit,
-        }
+        },
     )
-    
+
     # Cache for 5 minutes
     redis_client.setex(cache_key, 300, json.dumps(result.model_dump(), default=str))
-    
+
     return result
 
 
@@ -173,20 +180,21 @@ async def list_entries(
 async def get_entry(
     entry_id: UUID,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """Get a specific entry"""
-    entry = db.query(Entry).filter(
-        Entry.id == entry_id,
-        Entry.user_id == current_user.id
-    ).first()
-    
+    entry = (
+        db.query(Entry)
+        .filter(Entry.id == entry_id, Entry.user_id == current_user.id)
+        .first()
+    )
+
     if not entry:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Entry not found",
         )
-    
+
     return entry
 
 
@@ -195,20 +203,21 @@ async def update_entry(
     entry_id: UUID,
     entry_data: EntryUpdate,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """Update an entry"""
-    entry = db.query(Entry).filter(
-        Entry.id == entry_id,
-        Entry.user_id == current_user.id
-    ).first()
-    
+    entry = (
+        db.query(Entry)
+        .filter(Entry.id == entry_id, Entry.user_id == current_user.id)
+        .first()
+    )
+
     if not entry:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Entry not found",
         )
-    
+
     # Update fields
     if entry_data.title is not None:
         entry.title = entry_data.title
@@ -216,13 +225,13 @@ async def update_entry(
         entry.content = entry_data.content
     if entry_data.metadata is not None:
         entry.entry_metadata = entry_data.metadata
-    
+
     db.commit()
     db.refresh(entry)
-    
+
     # Invalidate cache
     redis_client.delete(f"entries:{current_user.id}:*")
-    
+
     return entry
 
 
@@ -230,26 +239,27 @@ async def update_entry(
 async def delete_entry(
     entry_id: UUID,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """Delete an entry"""
-    entry = db.query(Entry).filter(
-        Entry.id == entry_id,
-        Entry.user_id == current_user.id
-    ).first()
-    
+    entry = (
+        db.query(Entry)
+        .filter(Entry.id == entry_id, Entry.user_id == current_user.id)
+        .first()
+    )
+
     if not entry:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Entry not found",
         )
-    
+
     db.delete(entry)
     db.commit()
-    
+
     # Invalidate cache
     redis_client.delete(f"entries:{current_user.id}:*")
-    
+
     return None
 
 
@@ -259,31 +269,40 @@ async def search_entries(
     page: int = Query(1, ge=1),
     limit: int = Query(20, ge=1, le=100),
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """Search entries using full-text search"""
     # Cache key
     cache_key = f"search:{current_user.id}:{q}:{page}:{limit}"
-    
+
     # Try cache
     cached = redis_client.get(cache_key)
     if cached:
         return json.loads(cached)
-    
+
     # Full-text search
     search_query = func.to_tsquery("english", q.replace(" ", " & "))
-    
-    query = db.query(Entry).filter(
-        Entry.user_id == current_user.id,
-        func.to_tsvector("english", func.coalesce(Entry.title, "") + " " + 
-                        func.coalesce(Entry.content, "") + " " + 
-                        func.coalesce(Entry.ai_summary, "")).match(search_query)
-    ).order_by(desc(Entry.created_at))
-    
+
+    query = (
+        db.query(Entry)
+        .filter(
+            Entry.user_id == current_user.id,
+            func.to_tsvector(
+                "english",
+                func.coalesce(Entry.title, "")
+                + " "
+                + func.coalesce(Entry.content, "")
+                + " "
+                + func.coalesce(Entry.ai_summary, ""),
+            ).match(search_query),
+        )
+        .order_by(desc(Entry.created_at))
+    )
+
     total = query.count()
     offset = (page - 1) * limit
     entries = query.offset(offset).limit(limit).all()
-    
+
     result = EntryListResponse(
         data=entries,
         pagination={
@@ -291,11 +310,10 @@ async def search_entries(
             "limit": limit,
             "total": total,
             "pages": (total + limit - 1) // limit,
-        }
+        },
     )
-    
+
     # Cache for 10 minutes
     redis_client.setex(cache_key, 600, json.dumps(result.model_dump(), default=str))
-    
-    return result
 
+    return result
