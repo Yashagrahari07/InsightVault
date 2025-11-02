@@ -10,7 +10,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 from app.core.config import settings
 from app.core.database import Base
-from app.models import user, entry
+from app.models import user, entry, search
 
 # this is the Alembic Config object
 config = context.config
