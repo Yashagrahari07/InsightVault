@@ -15,7 +15,13 @@ frontend/*.log
 frontend/npm-debug.log*
 
 # Backend - Python
+__pycache__/
+*.py[cod]
+*.pyc
+*.pyo
+*.pyd
 backend/__pycache__/
+backend/**/__pycache__/
 backend/*.py[cod]
 backend/venv/
 backend/env/
