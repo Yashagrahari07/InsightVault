@@ -18,8 +18,9 @@ export default function RegisterPage() {
       await authService.register({ email, username, password })
       toast.success('Registration successful! Please login.')
       navigate('/login', { replace: true })
-    } catch (error: any) {
-      toast.error(error.response?.data?.detail || 'Registration failed')
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { detail?: string } } }
+      toast.error(err.response?.data?.detail || 'Registration failed')
     } finally {
       setIsLoading(false)
     }

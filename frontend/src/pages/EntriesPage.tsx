@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { entryService, Entry } from '../services/entryService'
+import { entryService } from '../services/entryService'
 import { Link } from 'react-router-dom'
 import { Plus, Search } from 'lucide-react'
 
@@ -43,7 +43,10 @@ export default function EntriesPage() {
           </div>
           <select
             value={contentType || ''}
-            onChange={(e) => setContentType(e.target.value as any || undefined)}
+            onChange={(e) => {
+              const value = e.target.value
+              setContentType(value === '' ? undefined : (value as 'link' | 'repo' | 'note'))
+            }}
             className="w-full sm:w-auto px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm sm:text-base"
           >
             <option value="">All Types</option>

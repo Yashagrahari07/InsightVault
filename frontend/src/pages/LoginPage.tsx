@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
-import { authService } from '../services/authService'
 import toast from 'react-hot-toast'
 
 export default function LoginPage() {
@@ -20,8 +19,9 @@ export default function LoginPage() {
       toast.success('Login successful!')
       // Use replace to avoid back button issues and ensure state is updated
       navigate('/dashboard', { replace: true })
-    } catch (error: any) {
-      toast.error(error.response?.data?.detail || 'Login failed')
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { detail?: string } } }
+      toast.error(err.response?.data?.detail || 'Login failed')
     } finally {
       setIsLoading(false)
     }

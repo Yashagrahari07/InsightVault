@@ -17,8 +17,9 @@ export default function CreateEntryPage() {
       toast.success('Entry created successfully!')
       navigate('/entries')
     },
-    onError: (error: any) => {
-      toast.error(error.response?.data?.detail || 'Failed to create entry')
+    onError: (error: unknown) => {
+      const err = error as { response?: { data?: { detail?: string } } }
+      toast.error(err.response?.data?.detail || 'Failed to create entry')
     },
   })
 
@@ -43,7 +44,7 @@ export default function CreateEntryPage() {
           </label>
           <select
             value={contentType}
-            onChange={(e) => setContentType(e.target.value as any)}
+            onChange={(e) => setContentType(e.target.value as 'link' | 'repo' | 'note')}
             className="input"
           >
             <option value="link">Link</option>

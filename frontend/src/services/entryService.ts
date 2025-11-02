@@ -7,7 +7,7 @@ export interface Entry {
   content_type: 'link' | 'repo' | 'note'
   url?: string
   content?: string
-  metadata?: Record<string, any>
+  metadata?: Record<string, unknown>
   ai_summary?: string
   summary_status: 'pending' | 'processing' | 'completed' | 'failed'
   created_at: string
@@ -28,7 +28,7 @@ export interface EntryCreate {
   content_type: 'link' | 'repo' | 'note'
   url?: string
   content?: string
-  metadata?: Record<string, any>
+  metadata?: Record<string, unknown>
 }
 
 export interface EntryListResponse {

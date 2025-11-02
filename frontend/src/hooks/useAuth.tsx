@@ -14,13 +14,15 @@ export const useAuth = () => {
         .then((userData) => {
           setUser(userData)
           setIsAuthenticated(true)
+          setIsLoading(false)
         })
         .catch(() => {
           localStorage.removeItem('access_token')
           setIsAuthenticated(false)
+          setIsLoading(false)
         })
-        .finally(() => setIsLoading(false))
     } else {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setIsLoading(false)
     }
   }, [])
