@@ -1,82 +1,165 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { entryService } from '../services/entryService'
+import { entryService, EntryListResponse } from '../services/entryService'
+import { searchService, EntryFilter } from '../services/searchService'
 import { Link } from 'react-router-dom'
-import { Plus, Search } from 'lucide-react'
+import { Plus, Clock, Filter } from 'lucide-react'
+import { AdvancedSearchBar } from '../components/search/AdvancedSearchBar'
+import { SearchResults } from '../components/search/SearchResults'
+import { FilterPanel } from '../components/search/FilterPanel'
+import { SearchHistorySidebar } from '../components/search/SearchHistorySidebar'
 
 export default function EntriesPage() {
   const [page, setPage] = useState(1)
   const [searchQuery, setSearchQuery] = useState('')
-  const [contentType, setContentType] = useState<'link' | 'repo' | 'note' | undefined>()
+  const [filters, setFilters] = useState<EntryFilter>({})
+  const [sort, setSort] = useState<'relevance' | 'newest' | 'oldest'>('relevance')
+  const [showFilters, setShowFilters] = useState(false)
+  const [showHistory, setShowHistory] = useState(false)
 
-  const { data, isLoading } = useQuery({
-    queryKey: ['entries', page, contentType, searchQuery],
-    queryFn: () => {
-      if (searchQuery) {
-        return entryService.searchEntries(searchQuery, page)
+  // Determine if we're in search mode
+  const isSearchMode = searchQuery.trim().length > 0 || Object.keys(filters).length > 0
+
+  const { data, isLoading, error } = useQuery<EntryListResponse>({
+    queryKey: ['entries', page, searchQuery, filters, sort],
+    queryFn: async () => {
+      if (isSearchMode) {
+        // Use advanced search
+        return searchService.advancedSearch({
+          q: searchQuery || '',
+          filters: Object.keys(filters).length > 0 ? filters : undefined,
+          sort,
+          page,
+          limit: 20,
+        })
+      } else {
+        // Use regular listing
+        return entryService.getEntries({
+          page,
+          content_type: filters.content_type,
+          sort: sort === 'relevance' ? 'newest' : sort,
+        })
       }
-      return entryService.getEntries({ page, content_type: contentType })
     },
+    enabled: true,
   })
+
+  const handleSearch = (query: string) => {
+    setSearchQuery(query)
+    setPage(1)
+  }
+
+  const handleFiltersChange = (newFilters: EntryFilter) => {
+    setFilters(newFilters)
+    setPage(1)
+  }
+
+  const handleClearFilters = () => {
+    setFilters({})
+    setPage(1)
+  }
+
+  const handleSelectHistory = (query: string) => {
+    setSearchQuery(query)
+    setPage(1)
+  }
+
+  const hasActiveFilters = Object.values(filters).some(
+    (value) => value !== undefined && value !== null && (Array.isArray(value) ? value.length > 0 : true)
+  )
 
   return (
     <div className="space-y-4 sm:space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Entries</h1>
-        <Link to="/entries/new" className="btn btn-primary inline-flex items-center w-full sm:w-auto justify-center">
-          <Plus className="h-4 w-4 mr-2" />
-          New Entry
-        </Link>
+        <div className="flex gap-2 w-full sm:w-auto">
+          <button
+            onClick={() => setShowHistory(true)}
+            className="btn btn-secondary inline-flex items-center justify-center"
+            title="Search History"
+          >
+            <Clock className="h-4 w-4 mr-2" />
+            History
+          </button>
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            className={`btn ${showFilters ? 'btn-primary' : 'btn-secondary'} inline-flex items-center justify-center`}
+            title="Filters"
+          >
+            <Filter className="h-4 w-4 mr-2" />
+            Filters
+            {hasActiveFilters && (
+              <span className="ml-2 bg-blue-600 text-white text-xs rounded-full px-2 py-0.5">
+                {Object.keys(filters).filter((k) => filters[k as keyof EntryFilter]).length}
+              </span>
+            )}
+          </button>
+          <Link to="/entries/new" className="btn btn-primary inline-flex items-center justify-center">
+            <Plus className="h-4 w-4 mr-2" />
+            New Entry
+          </Link>
+        </div>
       </div>
 
-      <div className="card">
-        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mb-4">
-          <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 sm:h-5 sm:w-5 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search entries..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 sm:pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm sm:text-base"
+      <div className="flex flex-col lg:flex-row gap-4">
+        {/* Filter Panel */}
+        {showFilters && (
+          <div className="lg:w-80 flex-shrink-0">
+            <FilterPanel
+              filters={filters}
+              onFiltersChange={handleFiltersChange}
+              onClearFilters={handleClearFilters}
             />
           </div>
-          <select
-            value={contentType || ''}
-            onChange={(e) => {
-              const value = e.target.value
-              setContentType(value === '' ? undefined : (value as 'link' | 'repo' | 'note'))
-            }}
-            className="w-full sm:w-auto px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm sm:text-base"
-          >
-            <option value="">All Types</option>
-            <option value="link">Links</option>
-            <option value="repo">Repositories</option>
-            <option value="note">Notes</option>
-          </select>
-        </div>
+        )}
 
-        {isLoading ? (
-          <div>Loading...</div>
-        ) : (
-          <>
-            <div className="space-y-4">
-              {data?.data.map((entry) => (
-                <Link
-                  key={entry.id}
-                  to={`/entries/${entry.id}`}
-                  className="block p-4 border border-gray-200 rounded-lg hover:bg-gray-50"
-                >
-                  <h3 className="text-lg font-semibold">{entry.title}</h3>
-                  <p className="text-sm text-gray-500 mt-1">
-                    {entry.content_type} • {new Date(entry.created_at).toLocaleDateString()}
-                  </p>
-                </Link>
-              ))}
+        {/* Main Content */}
+        <div className="flex-1">
+          <div className="card">
+            {/* Search Bar */}
+            <div className="mb-4">
+              <AdvancedSearchBar
+                onSearch={handleSearch}
+                onSelectSuggestion={handleSearch}
+                initialQuery={searchQuery}
+              />
             </div>
 
-            {data?.pagination && (
-              <div className="mt-4 flex flex-col sm:flex-row justify-between items-center gap-3 sm:gap-0">
+            {/* Sort Options */}
+            <div className="mb-4 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-600">Sort by:</span>
+                <select
+                  value={sort}
+                  onChange={(e) => {
+                    setSort(e.target.value as 'relevance' | 'newest' | 'oldest')
+                    setPage(1)
+                  }}
+                  className="px-3 py-1 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="relevance">Relevance</option>
+                  <option value="newest">Newest</option>
+                  <option value="oldest">Oldest</option>
+                </select>
+              </div>
+              {data && (
+                <span className="text-sm text-gray-500">
+                  {data.pagination.total} result{data.pagination.total !== 1 ? 's' : ''}
+                </span>
+              )}
+            </div>
+
+            {/* Results */}
+            <SearchResults
+              entries={data?.data || []}
+              isLoading={isLoading}
+              error={error ? String(error) : null}
+              searchQuery={searchQuery}
+            />
+
+            {/* Pagination */}
+            {data?.pagination && data.pagination.pages > 1 && (
+              <div className="mt-6 flex flex-col sm:flex-row justify-between items-center gap-3 sm:gap-0">
                 <button
                   onClick={() => setPage(page - 1)}
                   disabled={page === 1}
@@ -96,10 +179,16 @@ export default function EntriesPage() {
                 </button>
               </div>
             )}
-          </>
-        )}
+          </div>
+        </div>
       </div>
+
+      {/* Search History Sidebar */}
+      <SearchHistorySidebar
+        isOpen={showHistory}
+        onClose={() => setShowHistory(false)}
+        onSelectHistory={handleSelectHistory}
+      />
     </div>
   )
 }
-
