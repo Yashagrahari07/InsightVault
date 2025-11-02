@@ -5,7 +5,7 @@ from loguru import logger
 import sentry_sdk
 from sentry_sdk.integrations.fastapi import FastApiIntegration
 from app.core.config import settings
-from app.api.v1 import auth, entries, tags, analytics, ai
+from app.api.v1 import auth, entries, tags, analytics, ai, search
 
 if settings.SENTRY_DSN:
     sentry_sdk.init(
@@ -49,6 +49,7 @@ app.include_router(entries.router, prefix=settings.API_V1_PREFIX, tags=["Entries
 app.include_router(tags.router, prefix=settings.API_V1_PREFIX, tags=["Tags"])
 app.include_router(analytics.router, prefix=settings.API_V1_PREFIX, tags=["Analytics"])
 app.include_router(ai.router, prefix=settings.API_V1_PREFIX, tags=["AI"])
+app.include_router(search.router, prefix=settings.API_V1_PREFIX, tags=["Search"])
 
 
 @app.exception_handler(Exception)
