@@ -19,7 +19,7 @@ class SearchRequest(BaseModel):
     """Search request schema"""
     q: str = Field(..., min_length=1, max_length=500)
     filters: Optional[EntryFilter] = None
-    sort: str = Field("relevance", regex="^(relevance|newest|oldest)$")
+    sort: str = Field("relevance", pattern="^(relevance|newest|oldest)$")
     page: int = Field(1, ge=1)
     limit: int = Field(20, ge=1, le=100)
 
