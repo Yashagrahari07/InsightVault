@@ -1,21 +1,19 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
-from sqlalchemy import or_, func, desc
-from typing import List, Optional
+from sqlalchemy import func, desc
+from typing import Optional
 from uuid import UUID
 from app.core.database import get_db
 from app.core.redis import redis_client
 from app.core.security import get_current_user
 from app.models.user import User
-from app.models.entry import Entry, Tag, EntryTag
+from app.models.entry import Entry
 from app.schemas.entry import (
     EntryCreate,
     EntryUpdate,
     EntryResponse,
     EntryListResponse,
-    EntrySearchRequest,
     ContentType,
-    SummaryStatus,
 )
 import json
 import httpx

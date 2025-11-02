@@ -5,7 +5,6 @@ from app.core.database import get_db
 from app.core.security import get_current_user
 from app.models.user import User
 from app.models.entry import Entry, Tag, EntryTag
-from typing import Dict, Any
 
 router = APIRouter()
 

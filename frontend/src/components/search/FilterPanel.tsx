@@ -71,7 +71,8 @@ export function FilterPanel({ filters, onFiltersChange, onClearFilters }: Filter
       setShowSaveDialog(false)
       setSaveFilterName('')
       loadSavedFilters()
-    } catch (error: any) {
+    } catch (err) {
+      const error = err as { response?: { data?: { detail?: string } } }
       toast.error(error.response?.data?.detail || 'Failed to save filter')
     }
   }
@@ -88,7 +89,7 @@ export function FilterPanel({ filters, onFiltersChange, onClearFilters }: Filter
       await searchService.deleteSavedFilter(id)
       toast.success('Filter deleted')
       loadSavedFilters()
-    } catch (error) {
+    } catch {
       toast.error('Failed to delete filter')
     }
   }

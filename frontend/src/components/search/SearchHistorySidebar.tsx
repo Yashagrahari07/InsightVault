@@ -42,7 +42,7 @@ export function SearchHistorySidebar({
       await searchService.clearSearchHistory()
       setHistory([])
       toast.success('Search history cleared')
-    } catch (error) {
+    } catch {
       toast.error('Failed to clear history')
     }
   }

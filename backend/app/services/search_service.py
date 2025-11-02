@@ -2,8 +2,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func, desc, asc
 from typing import List, Dict, Optional
 from uuid import UUID
-from datetime import datetime
-from app.models.entry import Entry, Tag, EntryTag
+from app.models.entry import Entry, EntryTag
 from app.models.search import SearchHistory, SavedFilter
 from app.schemas.search import SavedFilterCreate, SavedFilterUpdate
 from loguru import logger
@@ -37,9 +36,11 @@ class AdvancedSearchService:
                 )
 
             if filters.get("tags"):
-                base_query = base_query.join(EntryTag).filter(
-                    EntryTag.tag_id.in_(filters["tags"])
-                ).distinct()
+                base_query = (
+                    base_query.join(EntryTag)
+                    .filter(EntryTag.tag_id.in_(filters["tags"]))
+                    .distinct()
+                )
 
             if filters.get("date_from"):
                 base_query = base_query.filter(Entry.created_at >= filters["date_from"])
@@ -74,9 +75,9 @@ class AdvancedSearchService:
         relevance = func.ts_rank(search_vector, query_vector)
 
         # Apply search filter
-        results_query = base_query.filter(search_vector.match(query_vector)).add_columns(
-            relevance.label("relevance")
-        )
+        results_query = base_query.filter(
+            search_vector.match(query_vector)
+        ).add_columns(relevance.label("relevance"))
 
         # Sort
         if sort == "relevance":
@@ -120,9 +121,7 @@ class SuggestionService:
     def __init__(self, db: Session):
         self.db = db
 
-    def get_suggestions(
-        self, query: str, user_id: UUID, limit: int = 10
-    ) -> List[str]:
+    def get_suggestions(self, query: str, user_id: UUID, limit: int = 10) -> List[str]:
         """Get search suggestions based on query"""
 
         if len(query) < 2:
@@ -162,7 +161,11 @@ class SuggestionService:
         return all_suggestions[:limit]
 
     def save_search_history(
-        self, user_id: UUID, query: str, filters: Optional[Dict] = None, result_count: int = 0
+        self,
+        user_id: UUID,
+        query: str,
+        filters: Optional[Dict] = None,
+        result_count: int = 0,
     ):
         """Save search query to history"""
         try:
@@ -229,15 +232,11 @@ class SavedFilterService:
             .all()
         )
 
-    def get_saved_filter(
-        self, filter_id: UUID, user_id: UUID
-    ) -> Optional[SavedFilter]:
+    def get_saved_filter(self, filter_id: UUID, user_id: UUID) -> Optional[SavedFilter]:
         """Get a specific saved filter"""
         return (
             self.db.query(SavedFilter)
-            .filter(
-                SavedFilter.id == filter_id, SavedFilter.user_id == user_id
-            )
+            .filter(SavedFilter.id == filter_id, SavedFilter.user_id == user_id)
             .first()
         )
 
@@ -267,4 +266,3 @@ class SavedFilterService:
         self.db.delete(saved_filter)
         self.db.commit()
         return True
-

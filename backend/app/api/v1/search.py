@@ -1,8 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
-from typing import List, Optional
+from typing import List
 from uuid import UUID
-from datetime import datetime
 from app.core.database import get_db
 from app.core.redis import redis_client
 from app.core.security import get_current_user
@@ -14,9 +13,8 @@ from app.schemas.search import (
     SavedFilterCreate,
     SavedFilterUpdate,
     SavedFilterResponse,
-    EntryFilter,
 )
-from app.schemas.entry import EntryListResponse, EntryResponse, ContentType
+from app.schemas.entry import EntryListResponse, ContentType
 from app.services.search_service import (
     AdvancedSearchService,
     SuggestionService,
@@ -35,7 +33,7 @@ async def advanced_search_entries(
     db: Session = Depends(get_db),
 ):
     """Advanced search with filters, sorting, and relevance ranking"""
-    
+
     # Build cache key
     cache_key_parts = [
         "search",
@@ -46,26 +44,32 @@ async def advanced_search_entries(
         search_request.sort,
     ]
     if search_request.filters:
-        filters_str = json.dumps(search_request.filters.model_dump(exclude_none=True), default=str, sort_keys=True)
+        filters_str = json.dumps(
+            search_request.filters.model_dump(exclude_none=True),
+            default=str,
+            sort_keys=True,
+        )
         cache_key_parts.append(filters_str)
     cache_key = ":".join(cache_key_parts)
-    
+
     # Try cache
     cached = redis_client.get(cache_key)
     if cached:
         return json.loads(cached)
-    
+
     # Initialize service
     search_service = AdvancedSearchService(db)
-    
+
     # Convert filters to dict
     filters_dict = None
     if search_request.filters:
         filters_dict = search_request.filters.model_dump(exclude_none=True)
         # Convert content_type enum to string if present
-        if "content_type" in filters_dict and isinstance(filters_dict["content_type"], ContentType):
+        if "content_type" in filters_dict and isinstance(
+            filters_dict["content_type"], ContentType
+        ):
             filters_dict["content_type"] = filters_dict["content_type"].value
-    
+
     # Perform search
     offset = (search_request.page - 1) * search_request.limit
     results = search_service.search_entries(
@@ -76,7 +80,7 @@ async def advanced_search_entries(
         limit=search_request.limit,
         offset=offset,
     )
-    
+
     # Save to search history
     suggestion_service = SuggestionService(db)
     suggestion_service.save_search_history(
@@ -85,7 +89,7 @@ async def advanced_search_entries(
         filters=filters_dict,
         result_count=results["total"],
     )
-    
+
     # Format response
     result = EntryListResponse(
         data=results["data"],
@@ -96,10 +100,10 @@ async def advanced_search_entries(
             "pages": (results["total"] + results["limit"] - 1) // results["limit"],
         },
     )
-    
+
     # Cache for 10 minutes
     redis_client.setex(cache_key, 600, json.dumps(result.model_dump(), default=str))
-    
+
     return result
 
 
@@ -111,26 +115,26 @@ async def get_search_suggestions(
     db: Session = Depends(get_db),
 ):
     """Get search suggestions/autocomplete"""
-    
+
     # Cache key
     cache_key = f"suggestions:{current_user.id}:{q}:{limit}"
-    
+
     # Try cache
     cached = redis_client.get(cache_key)
     if cached:
         return json.loads(cached)
-    
+
     # Get suggestions
     suggestion_service = SuggestionService(db)
     suggestions = suggestion_service.get_suggestions(
         query=q, user_id=current_user.id, limit=limit
     )
-    
+
     result = SearchSuggestionResponse(suggestions=suggestions)
-    
+
     # Cache for 5 minutes
     redis_client.setex(cache_key, 300, json.dumps(result.model_dump()))
-    
+
     return result
 
 
@@ -141,12 +145,12 @@ async def get_search_history(
     db: Session = Depends(get_db),
 ):
     """Get user's search history"""
-    
+
     suggestion_service = SuggestionService(db)
     history = suggestion_service.get_search_history(
         user_id=current_user.id, limit=limit
     )
-    
+
     return history
 
 
@@ -156,23 +160,25 @@ async def clear_search_history(
     db: Session = Depends(get_db),
 ):
     """Clear user's search history"""
-    
+
     suggestion_service = SuggestionService(db)
     suggestion_service.clear_search_history(user_id=current_user.id)
-    
+
     return None
 
 
-@router.post("/filters", response_model=SavedFilterResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/filters", response_model=SavedFilterResponse, status_code=status.HTTP_201_CREATED
+)
 async def create_saved_filter(
     filter_data: SavedFilterCreate,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """Create a new saved filter"""
-    
+
     filter_service = SavedFilterService(db)
-    
+
     try:
         saved_filter = filter_service.create_saved_filter(
             user_id=current_user.id, filter_data=filter_data
@@ -192,10 +198,10 @@ async def list_saved_filters(
     db: Session = Depends(get_db),
 ):
     """Get all saved filters for the current user"""
-    
+
     filter_service = SavedFilterService(db)
     filters = filter_service.get_saved_filters(user_id=current_user.id)
-    
+
     return filters
 
 
@@ -206,18 +212,18 @@ async def get_saved_filter(
     db: Session = Depends(get_db),
 ):
     """Get a specific saved filter"""
-    
+
     filter_service = SavedFilterService(db)
     saved_filter = filter_service.get_saved_filter(
         filter_id=filter_id, user_id=current_user.id
     )
-    
+
     if not saved_filter:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Saved filter not found",
         )
-    
+
     return saved_filter
 
 
@@ -229,18 +235,18 @@ async def update_saved_filter(
     db: Session = Depends(get_db),
 ):
     """Update a saved filter"""
-    
+
     filter_service = SavedFilterService(db)
     saved_filter = filter_service.update_saved_filter(
         filter_id=filter_id, user_id=current_user.id, filter_data=filter_data
     )
-    
+
     if not saved_filter:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Saved filter not found",
         )
-    
+
     return saved_filter
 
 
@@ -251,17 +257,16 @@ async def delete_saved_filter(
     db: Session = Depends(get_db),
 ):
     """Delete a saved filter"""
-    
+
     filter_service = SavedFilterService(db)
     deleted = filter_service.delete_saved_filter(
         filter_id=filter_id, user_id=current_user.id
     )
-    
+
     if not deleted:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Saved filter not found",
         )
-    
-    return None
 
+    return None

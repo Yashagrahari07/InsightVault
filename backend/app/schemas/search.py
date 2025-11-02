@@ -7,6 +7,7 @@ from app.schemas.entry import ContentType
 
 class EntryFilter(BaseModel):
     """Filter schema for entry search"""
+
     content_type: Optional[ContentType] = None
     tags: Optional[List[UUID]] = None
     date_from: Optional[datetime] = None
@@ -17,6 +18,7 @@ class EntryFilter(BaseModel):
 
 class SearchRequest(BaseModel):
     """Search request schema"""
+
     q: str = Field(..., min_length=1, max_length=500)
     filters: Optional[EntryFilter] = None
     sort: str = Field("relevance", pattern="^(relevance|newest|oldest)$")
@@ -26,6 +28,7 @@ class SearchRequest(BaseModel):
 
 class SearchHistoryResponse(BaseModel):
     """Search history response schema"""
+
     id: UUID
     query: str
     filters: Optional[Dict[str, Any]] = None
@@ -38,23 +41,27 @@ class SearchHistoryResponse(BaseModel):
 
 class SavedFilterBase(BaseModel):
     """Base schema for saved filter"""
+
     name: str = Field(..., min_length=1, max_length=200)
     filters: EntryFilter
 
 
 class SavedFilterCreate(SavedFilterBase):
     """Schema for creating saved filter"""
+
     pass
 
 
 class SavedFilterUpdate(BaseModel):
     """Schema for updating saved filter"""
+
     name: Optional[str] = Field(None, min_length=1, max_length=200)
     filters: Optional[EntryFilter] = None
 
 
 class SavedFilterResponse(SavedFilterBase):
     """Saved filter response schema"""
+
     id: UUID
     user_id: UUID
     created_at: datetime
@@ -66,5 +73,5 @@ class SavedFilterResponse(SavedFilterBase):
 
 class SearchSuggestionResponse(BaseModel):
     """Search suggestion response schema"""
-    suggestions: List[str]
 
+    suggestions: List[str]

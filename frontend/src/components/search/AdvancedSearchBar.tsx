@@ -27,23 +27,38 @@ export function AdvancedSearchBar({
 
   // Fetch suggestions when query changes
   useEffect(() => {
-    if (debouncedQuery.length >= 2) {
-      setIsLoading(true)
-      searchService
-        .getSuggestions(debouncedQuery, 10)
-        .then((data) => {
-          setSuggestions(data.suggestions)
-          setShowSuggestions(true)
-        })
-        .catch(() => {
-          setSuggestions([])
-        })
-        .finally(() => {
-          setIsLoading(false)
-        })
-    } else {
+    if (debouncedQuery.length < 2) {
       setSuggestions([])
       setShowSuggestions(false)
+      return
+    }
+
+    let cancelled = false
+    
+    // Use async function to avoid setState in effect
+    const fetchSuggestions = async () => {
+      setIsLoading(true)
+      try {
+        const data = await searchService.getSuggestions(debouncedQuery, 10)
+        if (!cancelled) {
+          setSuggestions(data.suggestions)
+          setShowSuggestions(true)
+        }
+      } catch {
+        if (!cancelled) {
+          setSuggestions([])
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false)
+        }
+      }
+    }
+
+    fetchSuggestions()
+    
+    return () => {
+      cancelled = true
     }
   }, [debouncedQuery])
 

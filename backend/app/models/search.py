@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, DateTime, ForeignKey, Text, func, Index
+from sqlalchemy import Column, String, DateTime, ForeignKey, func, Index
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
 import uuid
@@ -57,4 +57,3 @@ class SavedFilter(Base):
 
     def __repr__(self):
         return f"<SavedFilter(id={self.id}, name={self.name})>"
-

@@ -1,4 +1,3 @@
-from fastapi import BackgroundTasks
 from sqlalchemy.orm import Session
 from uuid import UUID
 from app.core.config import settings
